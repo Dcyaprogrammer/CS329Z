@@ -67,7 +67,7 @@ def main(argv=None) -> int:
             record = ConversationRecord.from_json(path.read_text(encoding="utf-8"))
             judge = make_judge_lm(persona)
             score(persona, record, judge)
-            record.usage = {"judge": {"calls": judge.calls, "cost_usd": judge.cost_usd}}
+            record.usage = {"judge": judge.usage()}
             path.write_text(record.to_json(), encoding="utf-8")
             records.append(record)
         if not records:

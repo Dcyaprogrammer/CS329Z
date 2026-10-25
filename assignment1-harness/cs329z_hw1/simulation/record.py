@@ -73,15 +73,11 @@ class ConversationRecord:
     error: Optional[str] = None  # traceback if the agent raised
     seconds: float = 0.0
     # Usage by seat: {"agent": {...}, "user": {...}, "judge": {...}}, each
-    # with "calls" and "cost_usd". Calls served from the cache cost nothing.
+    # with call counts and token usage.
     usage: dict = field(default_factory=dict)
     checks: list[CheckResult] = field(default_factory=list)
     judge: Optional[JudgeResult] = None
     success: bool = False
-
-    @property
-    def cost_usd(self) -> float:
-        return sum(u.get("cost_usd", 0.0) for u in self.usage.values())
 
     @property
     def user_turns(self) -> int:

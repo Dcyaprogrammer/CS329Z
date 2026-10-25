@@ -3,19 +3,12 @@
 from __future__ import annotations
 
 import os
-import re
 
 import pytest
 
 from cs329z_hw1.llm import LM, ScriptedLM, _load_env
 
 _load_env()  # so CS329Z_* settings in .env apply to the tests too
-
-
-def _tag(request) -> str:
-    # "tests/test_priority.py::test_live_accuracy" -> "test_priority/test_live_accuracy"
-    node = request.node.nodeid.replace("tests/", "").replace(".py::", "/")
-    return re.sub(r"\[.*\]$", "", node)
 
 
 @pytest.fixture
@@ -43,15 +36,15 @@ def canned_aux():
 
 
 @pytest.fixture
-def live_lm(request):
+def live_lm():
     """The real model for live tests: the grading model."""
-    return LM(None, tag=_tag(request))
+    return LM()
 
 
 @pytest.fixture
-def live_aux(request):
+def live_aux():
     """A second real model instance, for AgentConfig.aux_lm in live tests."""
-    return LM(None, tag=_tag(request) + "/aux")
+    return LM()
 
 
 @pytest.fixture(scope="session")

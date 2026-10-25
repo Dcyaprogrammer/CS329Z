@@ -26,8 +26,9 @@ where things are.
    cp .env.example .env
    ```
 
-   Open `.env` and fill in `OPENROUTER_API_KEY`. The file is gitignored. Do not
-   commit it.
+   Open `.env` and set `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL`
+   for your OpenAI-compatible provider.
+   The file is gitignored. Do not commit it.
 
 
 3. Unpack the email archive. It ships in the repository as
@@ -95,10 +96,10 @@ uv run python -m cs329z_hw1.show memory .lm_cache/chat_memory             # what
 uv run python -m cs329z_hw1.show memory                                   # each persona's memory after an evaluation run
 ```
 
-Each prints the result and the cost and time of the model calls. A repeat
+Each prints the result, model call count, and elapsed time. A repeat
 with unchanged code is free.
 
-## Model calls and spending
+## Model calls and caching
 
 All model calls go through `cs329z_hw1.llm.LM`: a list of
 `{"role", "content"}` messages in, a string out.
@@ -106,33 +107,26 @@ All model calls go through `cs329z_hw1.llm.LM`: a list of
 ```python
 from cs329z_hw1.llm import LM
 
-lm = LM()            # the grading model, openai/gpt-6-luna
-judge = LM("judge")  # the evaluation's judge model, openai/gpt-6-sol
+lm = LM()            # the grading model
+judge = LM("judge")  # the evaluation's judge model
 text = lm([{"role": "user", "content": "Say hello."}])
 ```
 
-The wrapper does three things:
+Calls use the OpenAI SDK with your configured API key, base URL, and model.
+All three roles use `OPENAI_MODEL` by default. Override
+`CS329Z_GRADING_MODEL`, `CS329Z_USER_MODEL`, or `CS329Z_JUDGE_MODEL` in `.env`
+if needed.
+`CS329Z_REASONING_EFFORT` is optional; only set it if your provider and model
+support it. Local live-test scores may differ from the original course
+models.
 
-- **Cache.** Each reply is stored under `.lm_cache/`, keyed on the model,
-  the sampling settings and the exact messages. Repeating an identical call
-  returns the stored reply and costs nothing.
-- **Ledger.** Each call that reaches the provider is appended to
-  `.lm_cache/ledger.jsonl` with its token counts and cost. Print the totals
-  by model and by tag (the test suite tags each call with the test name)
-  with:
+Each reply is cached under `.lm_cache/`, keyed on the endpoint, model,
+sampling settings, and exact messages. Repeating an identical call returns
+the stored reply without another API request. Delete `.lm_cache/` to clear
+the cache.
 
-  ```sh
-  uv run python -m cs329z_hw1.llm
-  ```
-
-- **Budget.** The key we issue you has a spending limit on our side, and
-  calls fail once it is reached. `CS329Z_BUDGET_USD` (in `.env` or the
-  environment) is a second limit you set for yourself: once the ledger
-  total reaches it, the wrapper raises `BudgetExceeded` instead of making
-  a call, so a runaway loop stops before the key does. Cached replies are
-  still returned.
-
-Deleting `.lm_cache/` deletes both the cache and the ledger.
+`lm.usage()` reports call counts, token usage, and elapsed time. Replies cut
+off by `max_tokens` raise `OutputTruncated` and are not cached.
 
 ## How to work a problem
 
@@ -179,7 +173,7 @@ cs329z_hw1/                               your package: every file you write goe
   adapters.py           yours     read  the only file the tests call; starts as stubs
   pipelines/            yours           Part 1 (starts empty)
   agent/                yours           Part 2 (starts empty)
-  llm.py                provided  read  LM, ScriptedLM, cache, ledger, budget
+  llm.py                provided  read  LM, ScriptedLM, cache
   types.py              provided  read  data types shared by your code and the tests
   tokens.py             provided  read  count_tokens, count_message_tokens (4 characters per token)
   tokenizer.py          provided        tokenize(), the tokenizer BM25 must use

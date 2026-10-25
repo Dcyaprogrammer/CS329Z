@@ -42,9 +42,9 @@ def main() -> None:
         mode=args.mode,
         user=ConsoleUser(),
         memory_dir=args.memory_dir,
-        aux_lm=LM(tag="chat/aux"),
+        aux_lm=LM(),
     )
-    lm = LM(tag="chat")
+    lm = LM()
     session = adapters.run_agent_session(lm, None, config)
     print(f"Cardinal Agent ({args.mode} mode, memory in {args.memory_dir}). Type exit to leave.")
     started = time.strftime("%Y%m%d-%H%M%S")

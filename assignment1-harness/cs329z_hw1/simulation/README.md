@@ -18,24 +18,16 @@ uv run python -m cs329z_hw1.simulation --rescore runs/sim-20261001-120000
 ```
 
 Both entry points print one row per persona (result, user turns, tool calls,
-new USD, seconds). A failed row is followed by the checks that failed and
+seconds). A failed row is followed by the checks that failed and
 the judge's reason. Each conversation is saved as
 `runs/sim-<time>/<persona id>.json`; the file holds the dialogue, your
 agent's transcript, the check results and the judge's full reply. The
 persona's memory directory, as your agent left it at the end of the
 conversation, is copied to `runs/sim-<time>/<persona id>.memory/`.
 
-The "new USD" column is what this run added to your bill. A conversation
-whose model calls were all in the cache shows 0.0000: it was replayed from
-the cache. A change to your agent's system prompt or to a tool description
-changes the first message of every agent call, so every conversation runs
-again and is charged.
-
 `--model` changes only the models your agent uses: its own turns and
 `aux_lm`. The simulated user always runs on the "user" model and the judge
-on the "judge" model (see `cs329z_hw1/llm.py`). The judge is the most
-expensive model of the three per token and the largest single part of the
-cost of a run.
+on the "judge" model (see `cs329z_hw1/llm.py`).
 
 Model calls go through the cached `LM`. If your agent's calls are unchanged,
 the persona's replies and the judge's verdict come from the cache and a

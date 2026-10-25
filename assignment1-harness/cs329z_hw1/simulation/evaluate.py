@@ -20,7 +20,7 @@ DEFAULT_CONCURRENCY = 4
 
 # An agent factory is called once per persona and returns
 # (make_session, agent_lms): the function that creates a session from an
-# AgentConfig, and the LM objects that session uses (for the cost column).
+# AgentConfig, and the LM objects that session uses (for usage reporting).
 AgentFactory = Callable[[Persona], tuple[Callable, Sequence]]
 
 
@@ -30,13 +30,13 @@ def adapter_agent_factory(adapters, model: Optional[str] = None) -> AgentFactory
 
     ``adapters`` is the ``cs329z_hw1.adapters`` module. ``model`` is a role or
     model name for the agent; None means "grading".
-    Each persona gets its own LM objects so cost can be reported per
+    Each persona gets its own LM objects so usage can be reported per
     conversation. A second LM is passed as ``AgentConfig.aux_lm``.
     """
 
     def factory(persona: Persona):
-        lm = LM(model, tag=f"sim_eval/{persona.id}/agent", salt=eval_salt())
-        aux = LM(model, tag=f"sim_eval/{persona.id}/agent_aux", salt=eval_salt())
+        lm = LM(model, salt=eval_salt())
+        aux = LM(model, salt=eval_salt())
 
         def make_session(config):
             return adapters.run_agent_session(lm, None, dataclasses.replace(config, aux_lm=aux))
@@ -97,12 +97,12 @@ def format_table(records: Sequence[ConversationRecord], verbose: bool = False) -
     by the failed checks and the judge's reason; ``verbose`` prints the
     judge's reason for passed conversations too."""
     width = max([len(r.persona_id) for r in records] + [7])
-    lines = [f"{'persona':<{width}}  {'category':<15}{'result':<7}{'turns':>5}{'tools':>6}{'new USD':>9}{'sec':>7}"]
+    lines = [f"{'persona':<{width}}  {'category':<15}{'result':<7}{'turns':>5}{'tools':>6}{'sec':>7}"]
     for r in records:
         tools = sum(1 for s in r.sessions for e in s.transcript if e.get("type") == "tool_call")
         lines.append(
             f"{r.persona_id:<{width}}  {r.category:<15}{'PASS' if r.success else 'FAIL':<7}"
-            f"{r.user_turns:>5}{tools:>6}{r.cost_usd:>9.4f}{r.seconds:>7.1f}"
+            f"{r.user_turns:>5}{tools:>6}{r.seconds:>7.1f}"
         )
         if r.error:
             lines.append("    agent raised: " + r.error.strip().splitlines()[-1])
@@ -112,17 +112,10 @@ def format_table(records: Sequence[ConversationRecord], verbose: bool = False) -
             lines.append(f"    judge {'PASS' if r.judge.passed else 'FAIL'}: {r.judge.reason}")
     n = len(records)
     successes = sum(r.success for r in records)
-    cost = sum(r.cost_usd for r in records)
     lines.append("")
     lines.append(
         f"Successful conversations: {successes} of {n} "
-        f"(full credit at this size needs {required_successes(n)}). "
-        f"New spending: ${cost:.4f}."
-    )
-    lines.append(
-        "\"new USD\" is what this run added to your bill. A conversation whose model calls were all in the "
-        "cache shows 0.0000: it was replayed from the cache. Any change to your agent's prompt or tool descriptions "
-        "changes its model calls, so the conversation runs again and is charged."
+        f"(full credit at this size needs {required_successes(n)})."
     )
     if n == EVAL_SIZE:
         lines.append(f"Points under the handout's rule: {points(successes)} of {MAX_POINTS}.")

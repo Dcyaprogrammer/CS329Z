@@ -24,7 +24,7 @@ import traceback
 from pathlib import Path
 from typing import Callable, Optional, Sequence
 
-from cs329z_hw1.llm import LM, BudgetExceeded, OutputTruncated
+from cs329z_hw1.llm import LM, OutputTruncated
 from cs329z_hw1.simulation.checks import run_checks
 from cs329z_hw1.simulation.judge import judge_record
 from cs329z_hw1.simulation.persona import Persona
@@ -57,9 +57,9 @@ class RetryingLM:
     with double the budget and then settles for the text it got. Used for
     the simulated user and the judge, whose replies are short by design."""
 
-    def __init__(self, role: str, *, max_tokens: int, salt: str = "", tag: str) -> None:
-        self.lm = LM(role, max_tokens=max_tokens, salt=salt, tag=tag)
-        self.retry = LM(role, max_tokens=2 * max_tokens, salt=salt, tag=tag)
+    def __init__(self, role: str, *, max_tokens: int, salt: str = "") -> None:
+        self.lm = LM(role, max_tokens=max_tokens, salt=salt)
+        self.retry = LM(role, max_tokens=2 * max_tokens, salt=salt)
         self.model = self.lm.model
 
     def __call__(self, messages) -> str:
@@ -83,12 +83,11 @@ def make_user_lm(persona: Persona) -> RetryingLM:
         "user",
         max_tokens=USER_MAX_TOKENS,
         salt=f"persona:{persona.id}:{eval_salt()}",
-        tag=f"sim_eval/{persona.id}/user",
     )
 
 
 def make_judge_lm(persona: Persona) -> RetryingLM:
-    return RetryingLM("judge", max_tokens=JUDGE_MAX_TOKENS, tag=f"sim_eval/{persona.id}/judge")
+    return RetryingLM("judge", max_tokens=JUDGE_MAX_TOKENS)
 
 
 def build_config(persona: Persona, user: PersonaUser, memory_dir: Path, workspace: Path) -> AgentConfig:
@@ -117,7 +116,7 @@ def _make_workspace(path: Path) -> Path:
 
 def _usage(lms: Sequence) -> dict:
     """Combined usage of several LM objects."""
-    total = {"calls": 0, "cached_calls": 0, "cost_usd": 0.0}
+    total = {"calls": 0, "cached_calls": 0, "input_tokens": 0, "output_tokens": 0}
     for lm in lms:
         usage = lm.usage() if hasattr(lm, "usage") else {}
         for key in total:
@@ -135,9 +134,8 @@ def converse(
     """Run every session of ``persona`` and return the unscored record.
 
     An exception raised by the agent ends the conversation and is stored in
-    ``record.error``. Two exceptions are passed on instead, because they are
-    not failures of one conversation: ``NotImplementedError`` (the adapter is
-    still a stub) and ``BudgetExceeded`` (the spend cap was reached).
+    ``record.error``. ``NotImplementedError`` is passed on instead, because an adapter
+    that is still a stub is not a failure of one conversation.
     """
     record = ConversationRecord(persona_id=persona.id, category=persona.category)
     user = PersonaUser(persona, user_lm)
@@ -160,7 +158,7 @@ def converse(
                         break
                     result = session.send(message)
                     user.hear(result.text, result.status)
-            except (NotImplementedError, BudgetExceeded):
+            except NotImplementedError:
                 raise
             except Exception:
                 record.error = traceback.format_exc()

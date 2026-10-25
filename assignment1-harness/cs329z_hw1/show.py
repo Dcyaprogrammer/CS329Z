@@ -8,7 +8,7 @@
     uv run python -m cs329z_hw1.show memory [DIR]   # a memory store (e.g. .lm_cache/chat_memory), or every persona's after an evaluation
 
 Each command calls your adapters the way the tests do, on the grading model,
-and prints the result with the cost and time of the calls. Repeating a
+and prints the result with the call count and elapsed time. Repeating a
 command with unchanged code is free, because the LM caches every reply.
 
 ``digest --labels`` also prints the label your run_priority gives each email
@@ -60,14 +60,14 @@ def _email_header(email: dict) -> str:
 def _finish(lm: LM, started: float) -> None:
     u = lm.usage()
     cached = f", {u['cached_calls']} from the cache" if u["cached_calls"] else ""
-    print(paint(f"\n[{u['calls']} model calls{cached}; ${u['cost_usd']:.4f}; {time.time() - started:.1f} s]", "dim"))
+    print(paint(f"\n[{u['calls']} model calls{cached}; {time.time() - started:.1f} s]", "dim"))
 
 
 def show_priority(args) -> None:
     from cs329z_hw1 import adapters
 
     by_id = {e["id"]: e for e in data.load_emails()}
-    lm = LM(tag="show/priority")
+    lm = LM()
     started = time.time()
     for email_id in args.ids:
         email = by_id.get(email_id)
@@ -92,7 +92,7 @@ def show_digest(args) -> None:
     if args.limit:
         emails = emails[: args.limit]
     print(paint(f"Running your digest on {len(emails)} of the {total} emails of {args.date}...", "dim"), flush=True)
-    lm = LM(tag="show/digest")
+    lm = LM()
     started = time.time()
     digest = adapters.run_daily_digest(emails, lm)
     print(paint(f"\nDigest for {args.date} ({len(emails)} emails, {len(digest.split())} words):\n", "bold"))
@@ -141,7 +141,7 @@ def show_email_qa(args) -> None:
     from cs329z_hw1 import adapters
 
     archive, index = archive_index()
-    lm = LM(tag="show/email_qa")
+    lm = LM()
     started = time.time()
     returned: dict[str, dict] = {}
     hops = 0
